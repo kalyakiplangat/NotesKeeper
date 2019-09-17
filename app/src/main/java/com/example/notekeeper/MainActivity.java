@@ -1,22 +1,27 @@
 package com.example.notekeeper;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.view.View;
-import android.support.v4.view.GravityCompat;
-import android.support.v7.app.ActionBarDrawerToggle;
-import android.view.MenuItem;
-import android.support.design.widget.NavigationView;
-import android.support.v4.widget.DrawerLayout;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import android.preference.PreferenceManager;
+import android.view.View;
+import androidx.core.view.GravityCompat;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import android.view.MenuItem;
+import com.google.android.material.navigation.NavigationView;
+import androidx.drawerlayout.widget.DrawerLayout;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.view.Menu;
+import android.widget.TextView;
 
 import java.util.List;
 
@@ -28,6 +33,7 @@ public class MainActivity extends AppCompatActivity
     private LinearLayoutManager mNotesLayoutManager;
     private CourseRecyclerAdapter mCourseRecyclerAdapter;
     private GridLayoutManager mCoursesLayoutManager;
+    private NotekeeperOpenHelper mDbOpenHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +41,8 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        mDbOpenHelper = new NotekeeperOpenHelper(this);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -42,6 +50,8 @@ public class MainActivity extends AppCompatActivity
                 startActivity(new Intent(MainActivity.this, NoteActivity.class));
             }
         });
+
+//        PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
@@ -53,18 +63,40 @@ public class MainActivity extends AppCompatActivity
 
         initializeDisplayContent();
     }
+
+    @Override
+    protected void onDestroy() {
+        mDbOpenHelper.close();
+        super.onDestroy();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         mNoteRecyclerAdapter.notifyDataSetChanged();
+//        updateNavHeader();
     }
+
+//    private void updateNavHeader() {
+//        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+//        View headerView = navigationView.getHeaderView(0);
+//        TextView textUserName = (TextView) findViewById(R.id.text_user_name);
+//        TextView textEmailAddress = (TextView) findViewById(R.id.text_email_address);
+//
+//        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+//        String userName = pref.getString("display_user_name", "");
+//        String emailAddress = pref.getString("user_email_address", "");
+//
+//        textUserName.setText(userName);
+//        textEmailAddress.setText(emailAddress);
+//    }
 
     private void initializeDisplayContent() {
 
         mRecyclerItems = (RecyclerView) findViewById(R.id.list_items);
         mNotesLayoutManager = new LinearLayoutManager(this);
 
-        mCoursesLayoutManager = new GridLayoutManager(this, 2);
+        mCoursesLayoutManager = new GridLayoutManager(this, getResources().getInteger(R.integer.course_grid_span));
 
         List<NoteInfo> notes = DataManager.getInstance().getNotes();
         mNoteRecyclerAdapter = new NoteRecyclerAdapter(this, notes);
@@ -78,6 +110,8 @@ public class MainActivity extends AppCompatActivity
     private void displayNotes() {
         mRecyclerItems.setAdapter(mNoteRecyclerAdapter);
         mRecyclerItems.setLayoutManager(mNotesLayoutManager);
+
+        SQLiteDatabase db = mDbOpenHelper.getReadableDatabase();
 
         selectNavigationMenuItem(R.id.nav_notes);
     }
@@ -121,6 +155,7 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
 
@@ -138,9 +173,10 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_courses) {
             displayCourses();
         } else if (id == R.id.nav_share) {
-            handleSelection("Don't you think you have shared enough");
+//            handleSelection(R.string.nav_share_message);
+            handleShare();
         } else if (id == R.id.nav_send) {
-            handleSelection("send");
+            handleSelection(R.string.nav_send_message);
         }
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
@@ -148,8 +184,13 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    private void handleSelection(String message) {
+    private void handleShare() {
         View view = findViewById(R.id.list_items);
-        Snackbar.make(view, message, Snackbar.LENGTH_LONG).show();
+        Snackbar.make(view, "share to -" + PreferenceManager.getDefaultSharedPreferences(this).getString("user_favorite_social",""), Snackbar.LENGTH_LONG).show();
+    }
+
+    private void handleSelection(int message_id) {
+        View view = findViewById(R.id.list_items);
+        Snackbar.make(view, message_id, Snackbar.LENGTH_LONG).show();
     }
 }
